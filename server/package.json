@@ -1,0 +1,26 @@
+{
+  "name": "pictionary-server",
+  "version": "1.0.0",
+  "description": "Pictionary game server with real-time multiplayer support",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": [
+    "pictionary",
+    "game",
+    "multiplayer",
+    "socket.io"
+  ],
+  "author": "",
+  "license": "MIT"
+}
