@@ -42,7 +42,7 @@ npm install
 npx expo start
 ```
 
-Scan the QR code with Expo Go app on your phone or use iOS/Android simulator.
+Use iOS/Android simulator.
 
 ## Game Features
 
