@@ -148,6 +148,7 @@ io.on('connection', (socket) => {
     const game = games.get(roomId)
     if (game && game.startGame()) {
       io.to(roomId).emit('gameStarted', {
+        gameState: game.gameState,
         currentDrawer: game.currentDrawer,
         currentWord: game.currentWord,
         round: game.round,
@@ -190,6 +191,7 @@ io.on('connection', (socket) => {
       // Move to next round
       if (game.nextRound()) {
         io.to(roomId).emit('nextRound', {
+          gameState: game.gameState,
           currentDrawer: game.currentDrawer,
           currentWord: game.currentWord,
           round: game.round,
@@ -198,6 +200,7 @@ io.on('connection', (socket) => {
       } else {
         // Game finished
         io.to(roomId).emit('gameFinished', {
+          gameState: game.gameState,
           scores: game.scores,
           players: game.players,
         })

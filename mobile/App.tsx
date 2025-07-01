@@ -10,23 +10,13 @@ import {
   Dimensions,
   StatusBar,
 } from 'react-native'
-import {
-  GestureHandlerRootView,
-  PanGestureHandler,
-  State,
-} from 'react-native-gesture-handler'
-import Animated, {
-  useSharedValue,
-  useAnimatedGestureHandler,
-  useAnimatedStyle,
-  runOnJS,
-} from 'react-native-reanimated'
+import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import Svg, { Path } from 'react-native-svg'
 import io, { Socket } from 'socket.io-client'
 
 const { width, height } = Dimensions.get('window')
 const CANVAS_WIDTH = width - 40
-const CANVAS_HEIGHT = height * 0.4
+const CANVAS_HEIGHT = height * 0.5
 
 interface Player {
   id: string
@@ -62,9 +52,17 @@ export default function App() {
   const [guess, setGuess] = useState('')
   const [paths, setPaths] = useState<string[]>([])
   const [currentPath, setCurrentPath] = useState<string>('')
-
-  const translateX = useSharedValue(0)
-  const translateY = useSharedValue(0)
+  const [isDrawing, setIsDrawing] = useState(false)
+  const [strokeColor, setStrokeColor] = useState('#000000')
+  const [strokeWidth, setStrokeWidth] = useState(3)
+  const [pathData, setPathData] = useState<
+    { d: string; color: string; width: number }[]
+  >([])
+  const [currentPathData, setCurrentPathData] = useState<{
+    d: string
+    color: string
+    width: number
+  } | null>(null)
 
   useEffect(() => {
     const newSocket = io(SERVER_URL)
@@ -94,12 +92,26 @@ export default function App() {
     })
 
     newSocket.on('gameStarted', (data) => {
-      setGameState((prev) => (prev ? { ...prev, ...data } : null))
+      console.log('gameStarted event received:', data)
+      setGameState((prev) => {
+        const newState = prev ? { ...prev, ...data } : null
+        console.log('Updated gameState:', newState)
+        return newState
+      })
       addMessage('Game started!', 'info')
+      if (data.currentDrawer === newSocket.id) {
+        addMessage('You are the drawer! Draw: ' + data.currentWord, 'info')
+        addMessage(`Canvas size: ${CANVAS_WIDTH}x${CANVAS_HEIGHT}`, 'info')
+      }
     })
 
     newSocket.on('nextRound', (data) => {
-      setGameState((prev) => (prev ? { ...prev, ...data } : null))
+      console.log('nextRound event received:', data)
+      setGameState((prev) => {
+        const newState = prev ? { ...prev, ...data } : null
+        console.log('Updated gameState after nextRound:', newState)
+        return newState
+      })
       setPaths([])
       addMessage(`Round ${data.round} started!`, 'info')
     })
@@ -176,46 +188,81 @@ export default function App() {
     }
   }
 
-  const gestureHandler = useAnimatedGestureHandler({
-    onStart: (_, context: any) => {
-      context.startX = translateX.value
-      context.startY = translateY.value
-    },
-    onActive: (event, context) => {
-      if (gameState?.currentDrawer === socket?.id) {
-        translateX.value = context.startX + event.translationX
-        translateY.value = context.startY + event.translationY
+  const handleTouchStart = (event: any) => {
+    console.log('handleTouchStart called')
+    console.log('gameState?.currentDrawer:', gameState?.currentDrawer)
+    console.log('socket?.id:', socket?.id)
+    console.log('isCurrentDrawer:', gameState?.currentDrawer === socket?.id)
 
-        const x = event.absoluteX - 20 // Adjust for padding
-        const y = event.absoluteY - 200 // Adjust for header
-
-        if (x >= 0 && x <= CANVAS_WIDTH && y >= 0 && y <= CANVAS_HEIGHT) {
-          if (event.state === State.BEGAN) {
-            runOnJS(setCurrentPath)(`M ${x} ${y}`)
-            socket?.emit('draw', { roomId, data: { type: 'start', x, y } })
-          } else {
-            runOnJS(setCurrentPath)((prev) => `${prev} L ${x} ${y}`)
-            socket?.emit('draw', { roomId, data: { type: 'draw', x, y } })
-          }
-        }
+    if (gameState?.currentDrawer === socket?.id) {
+      console.log('Starting to draw...')
+      setIsDrawing(true)
+      const { locationX, locationY } = event.nativeEvent
+      console.log('TouchStart:', locationX, locationY)
+      const newPath = `M ${locationX} ${locationY}`
+      setCurrentPath(newPath)
+      setCurrentPathData({ d: newPath, color: strokeColor, width: strokeWidth })
+      console.log('setCurrentPathData called with:', {
+        d: newPath,
+        color: strokeColor,
+        width: strokeWidth,
+      })
+      if (socket && roomId) {
+        socket.emit('draw', {
+          roomId,
+          data: {
+            type: 'start',
+            x: locationX,
+            y: locationY,
+            color: strokeColor,
+            width: strokeWidth,
+          },
+        })
       }
-    },
-    onEnd: () => {
-      if (currentPath) {
-        setPaths((prev) => [...prev, currentPath])
-        setCurrentPath('')
-      }
-    },
-  })
-
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        { translateX: translateX.value },
-        { translateY: translateY.value },
-      ],
+    } else {
+      console.log('Not the current drawer or missing gameState/socket')
     }
-  })
+  }
+
+  const handleTouchMove = (event: any) => {
+    console.log('handleTouchMove called, isDrawing:', isDrawing)
+    if (isDrawing && gameState?.currentDrawer === socket?.id) {
+      const { locationX, locationY } = event.nativeEvent
+      console.log('TouchMove:', locationX, locationY)
+      setCurrentPath((prev) => `${prev} L ${locationX} ${locationY}`)
+      setCurrentPathData((prev) => {
+        const newData = prev
+          ? { ...prev, d: `${prev.d} L ${locationX} ${locationY}` }
+          : null
+        console.log('Updated currentPathData:', newData)
+        return newData
+      })
+      if (socket && roomId) {
+        socket.emit('draw', {
+          roomId,
+          data: {
+            type: 'draw',
+            x: locationX,
+            y: locationY,
+            color: strokeColor,
+            width: strokeWidth,
+          },
+        })
+      }
+    }
+  }
+
+  const handleTouchEnd = () => {
+    if (isDrawing) {
+      setIsDrawing(false)
+      if (currentPath && currentPathData) {
+        setPaths((prev) => [...prev, currentPath])
+        setPathData((prev) => [...prev, currentPathData])
+        setCurrentPath('')
+        setCurrentPathData(null)
+      }
+    }
+  }
 
   const isCurrentDrawer = gameState?.currentDrawer === socket?.id
 
@@ -231,181 +278,250 @@ export default function App() {
   if (!gameState) {
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>Pictionary Game</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Your name"
-          value={playerName}
-          onChangeText={setPlayerName}
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Room ID"
-          value={roomId}
-          onChangeText={setRoomId}
-        />
-        <TouchableOpacity style={styles.button} onPress={joinRoom}>
-          <Text style={styles.buttonText}>Join Room</Text>
-        </TouchableOpacity>
+        <View style={styles.joinContainer}>
+          <Text style={styles.title}>Pictionary Game</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Your name"
+            value={playerName}
+            onChangeText={setPlayerName}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Room ID"
+            value={roomId}
+            onChangeText={setRoomId}
+          />
+          <TouchableOpacity style={styles.button} onPress={joinRoom}>
+            <Text style={styles.buttonText}>Join Room</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     )
   }
 
   return (
     <GestureHandlerRootView style={styles.container}>
-      <StatusBar style="auto" />
-      <Text style={styles.title}>Pictionary Game</Text>
+      <StatusBar barStyle="dark-content" />
+      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={true}>
+        <Text style={styles.title}>Pictionary Game</Text>
 
-      <View style={styles.gameInfo}>
-        <Text style={styles.roomText}>Room: {gameState.roomId}</Text>
-        <ScrollView horizontal style={styles.playersList}>
-          {gameState.players.map((player) => (
-            <View
-              key={player.id}
-              style={[
-                styles.player,
-                player.id === gameState.currentDrawer && styles.currentDrawer,
-              ]}
-            >
-              <Text
+        <View style={styles.gameInfo}>
+          <Text style={styles.roomText}>Room: {gameState.roomId}</Text>
+          <ScrollView horizontal style={styles.playersList}>
+            {gameState.players.map((player) => (
+              <View
+                key={player.id}
                 style={[
-                  styles.playerText,
-                  player.id === gameState.currentDrawer &&
-                    styles.currentDrawerText,
+                  styles.player,
+                  player.id === gameState.currentDrawer && styles.currentDrawer,
                 ]}
               >
-                {player.name}{' '}
-                {player.id === gameState.currentDrawer ? '(Drawing)' : ''}
-              </Text>
-            </View>
-          ))}
-        </ScrollView>
-
-        {gameState.scores && (
-          <ScrollView horizontal style={styles.scores}>
-            {gameState.players.map((player) => (
-              <View key={player.id} style={styles.scoreItem}>
-                <Text style={styles.playerName}>{player.name}</Text>
-                <Text style={styles.scoreValue}>
-                  {gameState.scores![player.id] || 0}
+                <Text
+                  style={[
+                    styles.playerText,
+                    player.id === gameState.currentDrawer &&
+                      styles.currentDrawerText,
+                  ]}
+                >
+                  {player.name}{' '}
+                  {player.id === gameState.currentDrawer ? '(Drawing)' : ''}
                 </Text>
               </View>
             ))}
           </ScrollView>
-        )}
 
-        {gameState.round && (
-          <Text style={styles.roundText}>
-            Round {gameState.round} of {gameState.maxRounds}
-          </Text>
-        )}
-      </View>
+          {gameState.scores && (
+            <ScrollView horizontal style={styles.scores}>
+              {gameState.players.map((player) => (
+                <View key={player.id} style={styles.scoreItem}>
+                  <Text style={styles.playerName}>{player.name}</Text>
+                  <Text style={styles.scoreValue}>
+                    {gameState.scores![player.id] || 0}
+                  </Text>
+                </View>
+              ))}
+            </ScrollView>
+          )}
 
-      {gameState.gameState === 'waiting' && (
-        <View style={styles.gameContainer}>
-          <Text>
-            Waiting for players... ({gameState.players.length} players)
-          </Text>
-          {gameState.players.length >= 2 && (
-            <TouchableOpacity style={styles.button} onPress={startGame}>
-              <Text style={styles.buttonText}>Start Game</Text>
-            </TouchableOpacity>
+          {gameState.round && (
+            <Text style={styles.roundText}>
+              Round {gameState.round} of {gameState.maxRounds}
+            </Text>
           )}
         </View>
-      )}
 
-      {gameState.gameState === 'playing' && (
-        <View style={styles.gameContainer}>
-          {isCurrentDrawer ? (
-            <Text style={styles.wordDisplay}>
-              Draw: {gameState.currentWord}
+        {gameState.gameState === 'waiting' && (
+          <View style={styles.gameContainer}>
+            <Text>
+              Waiting for players... ({gameState.players.length} players)
             </Text>
-          ) : (
-            <Text style={styles.wordDisplay}>Guess the word!</Text>
-          )}
-
-          <View style={styles.canvasContainer}>
-            <PanGestureHandler onGestureEvent={gestureHandler}>
-              <Animated.View style={[styles.canvas, animatedStyle]}>
-                <Svg width={CANVAS_WIDTH} height={CANVAS_HEIGHT}>
-                  {paths.map((path, index) => (
-                    <Path
-                      key={index}
-                      d={path}
-                      stroke="black"
-                      strokeWidth={2}
-                      fill="none"
-                    />
-                  ))}
-                  {currentPath && (
-                    <Path
-                      d={currentPath}
-                      stroke="black"
-                      strokeWidth={2}
-                      fill="none"
-                    />
-                  )}
-                </Svg>
-              </Animated.View>
-            </PanGestureHandler>
-          </View>
-
-          <View style={styles.controls}>
-            {isCurrentDrawer && (
-              <TouchableOpacity
-                style={[styles.button, styles.clearButton]}
-                onPress={clearCanvas}
-              >
-                <Text style={styles.buttonText}>Clear Canvas</Text>
+            {gameState.players.length >= 2 && (
+              <TouchableOpacity style={styles.button} onPress={startGame}>
+                <Text style={styles.buttonText}>Start Game</Text>
               </TouchableOpacity>
             )}
           </View>
+        )}
 
-          {!isCurrentDrawer && (
-            <View style={styles.guessInput}>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your guess..."
-                value={guess}
-                onChangeText={setGuess}
-              />
-              <TouchableOpacity style={styles.button} onPress={handleGuess}>
-                <Text style={styles.buttonText}>Guess</Text>
-              </TouchableOpacity>
+        {gameState.gameState === 'playing' && (
+          <View style={styles.gameContainer}>
+            {isCurrentDrawer ? (
+              <Text style={styles.wordDisplay}>
+                Draw: {gameState.currentWord}
+              </Text>
+            ) : (
+              <Text style={styles.wordDisplay}>Guess the word!</Text>
+            )}
+
+            {/* Compact debug info */}
+            <Text style={{ fontSize: 8, color: '#666', marginBottom: 5 }}>
+              Drawer: {gameState.currentDrawer} | You: {socket?.id} | IsDrawer:{' '}
+              {isCurrentDrawer ? 'YES' : 'NO'}
+            </Text>
+            {currentPathData && (
+              <Text style={{ fontSize: 8, color: '#333', marginBottom: 5 }}>
+                Path: {currentPathData.d.substring(0, 50)}...
+              </Text>
+            )}
+
+            <View style={styles.canvasContainer}>
+              <Text style={styles.canvasLabel}>
+                DRAWING CANVAS - Touch and drag here to draw
+              </Text>
+              <Text style={styles.canvasDebug}>
+                Canvas dimensions: {CANVAS_WIDTH} x {CANVAS_HEIGHT}
+              </Text>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'center',
+                  marginBottom: 10,
+                }}
+              >
+                {[
+                  '#000000',
+                  '#FF0000',
+                  '#00FF00',
+                  '#0000FF',
+                  '#FFFF00',
+                  '#FF00FF',
+                  '#00FFFF',
+                ].map((color) => (
+                  <TouchableOpacity
+                    key={color}
+                    onPress={() => setStrokeColor(color)}
+                    style={{
+                      width: 30,
+                      height: 30,
+                      borderRadius: 15,
+                      backgroundColor: color,
+                      marginHorizontal: 5,
+                      borderWidth: strokeColor === color ? 3 : 1,
+                      borderColor: strokeColor === color ? '#333' : '#ccc',
+                    }}
+                  />
+                ))}
+              </View>
+
+              <View style={styles.canvasWrapper}>
+                <View
+                  style={[
+                    styles.canvas,
+                    { backgroundColor: 'rgba(255,255,255,0.1)' },
+                  ]}
+                  onTouchStart={handleTouchStart}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
+                >
+                  <Svg
+                    width={CANVAS_WIDTH}
+                    height={CANVAS_HEIGHT}
+                    onPress={() => console.log('SVG pressed!')}
+                  >
+                    {pathData.map((path, index) => (
+                      <Path
+                        key={index}
+                        d={path.d}
+                        stroke={path.color}
+                        strokeWidth={path.width}
+                        fill="none"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    ))}
+                    {currentPathData && (
+                      <Path
+                        d={currentPathData.d}
+                        stroke={currentPathData.color}
+                        strokeWidth={currentPathData.width}
+                        fill="none"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    )}
+                  </Svg>
+                </View>
+              </View>
             </View>
-          )}
-        </View>
-      )}
 
-      {gameState.gameState === 'finished' && (
-        <View style={styles.gameContainer}>
-          <Text style={styles.title}>Game Finished!</Text>
-          <ScrollView horizontal style={styles.scores}>
-            {gameState.players.map((player) => (
-              <View key={player.id} style={styles.scoreItem}>
-                <Text style={styles.playerName}>{player.name}</Text>
-                <Text style={styles.scoreValue}>
-                  {gameState.scores![player.id] || 0}
-                </Text>
+            <View style={styles.controls}>
+              {isCurrentDrawer && (
+                <TouchableOpacity
+                  style={[styles.button, styles.clearButton]}
+                  onPress={clearCanvas}
+                >
+                  <Text style={styles.buttonText}>Clear Canvas</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {!isCurrentDrawer && (
+              <View style={styles.guessInput}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter your guess..."
+                  value={guess}
+                  onChangeText={setGuess}
+                />
+                <TouchableOpacity style={styles.button} onPress={handleGuess}>
+                  <Text style={styles.buttonText}>Guess</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
+
+        {gameState.gameState === 'finished' && (
+          <View style={styles.gameContainer}>
+            <Text style={styles.title}>Game Finished!</Text>
+            <ScrollView horizontal style={styles.scores}>
+              {gameState.players.map((player) => (
+                <View key={player.id} style={styles.scoreItem}>
+                  <Text style={styles.playerName}>{player.name}</Text>
+                  <Text style={styles.scoreValue}>
+                    {gameState.scores![player.id] || 0}
+                  </Text>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        <View style={styles.messages}>
+          <Text style={styles.messagesTitle}>Messages</Text>
+          <ScrollView style={styles.messagesList}>
+            {messages.map((message) => (
+              <View
+                key={message.id}
+                style={[styles.message, styles[`message${message.type}`]]}
+              >
+                <Text style={styles.messageText}>{message.text}</Text>
               </View>
             ))}
           </ScrollView>
         </View>
-      )}
-
-      <View style={styles.messages}>
-        <Text style={styles.messagesTitle}>Messages</Text>
-        <ScrollView style={styles.messagesList}>
-          {messages.map((message) => (
-            <View
-              key={message.id}
-              style={[styles.message, styles[`message${message.type}`]]}
-            >
-              <Text style={styles.messageText}>{message.text}</Text>
-            </View>
-          ))}
-        </ScrollView>
-      </View>
+      </ScrollView>
     </GestureHandlerRootView>
   )
 }
@@ -416,6 +532,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
     padding: 20,
     paddingTop: 50,
+  },
+  joinContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
   },
   title: {
     fontSize: 24,
@@ -489,19 +611,45 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   canvasContainer: {
-    borderWidth: 2,
-    borderColor: '#333',
+    borderWidth: 3,
+    borderColor: '#007bff',
     borderRadius: 8,
-    backgroundColor: 'white',
+    backgroundColor: '#f8f9fa',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 6,
     elevation: 5,
+    marginVertical: 10,
+    padding: 10,
   },
   canvas: {
     width: CANVAS_WIDTH,
     height: CANVAS_HEIGHT,
+    backgroundColor: '#e8f4fd',
+    borderWidth: 1,
+    borderColor: '#007bff',
+  },
+  canvasLabel: {
+    textAlign: 'center',
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#007bff',
+    marginBottom: 10,
+  },
+  canvasDebug: {
+    textAlign: 'center',
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 10,
+  },
+  canvasWrapper: {
+    borderWidth: 2,
+    borderColor: '#ff0000',
+    borderStyle: 'dashed',
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   controls: {
     flexDirection: 'row',
@@ -519,8 +667,9 @@ const styles = StyleSheet.create({
     padding: 10,
     fontSize: 16,
     backgroundColor: 'white',
-    marginRight: 10,
-    flex: 1,
+    marginBottom: 15,
+    width: '100%',
+    maxWidth: 300,
   },
   button: {
     backgroundColor: '#007bff',
