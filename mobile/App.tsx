@@ -105,6 +105,11 @@ export default function App() {
         console.log('Updated gameState:', newState)
         return newState
       })
+      // Clear all drawing data when game starts
+      setPaths([])
+      setCurrentPath('')
+      setPathData([])
+      setCurrentPathData(null)
       addMessage('Game started!', 'info')
       if (data.currentDrawer === newSocket.id) {
         addMessage('You are the drawer! Draw: ' + data.currentWord, 'info')
@@ -119,7 +124,11 @@ export default function App() {
         console.log('Updated gameState after nextRound:', newState)
         return newState
       })
+      // Clear all drawing data for the new round
       setPaths([])
+      setCurrentPath('')
+      setPathData([])
+      setCurrentPathData(null)
       addMessage(`Round ${data.round} started!`, 'info')
     })
 

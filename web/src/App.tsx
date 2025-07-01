@@ -75,6 +75,11 @@ function App() {
 
     newSocket.on('gameStarted', (data) => {
       setGameState((prev) => (prev ? { ...prev, ...data } : null))
+      // Clear all drawing data when game starts
+      setDrawingData([])
+      if (contextRef.current) {
+        contextRef.current.clearRect(0, 0, 600, 400)
+      }
       addMessage('Game started!', 'info')
     })
 
@@ -136,27 +141,30 @@ function App() {
   }, [gameState?.gameState]) // Re-run when game state changes to ensure canvas is rendered
 
   useEffect(() => {
-    if (contextRef.current && drawingData.length > 0) {
+    if (contextRef.current) {
       const context = contextRef.current
-      // Clear the canvas first
+      // Always clear the canvas first
       context.clearRect(0, 0, 600, 400)
 
-      // Process all drawing data to render the complete drawing
-      drawingData.forEach((data) => {
-        const { x, y, color, width, type } = data
+      // Only draw if there's drawing data
+      if (drawingData.length > 0) {
+        // Process all drawing data to render the complete drawing
+        drawingData.forEach((data) => {
+          const { x, y, color, width, type } = data
 
-        if (type === 'start') {
-          context.strokeStyle = color || '#000'
-          context.lineWidth = width || 2
-          context.beginPath()
-          context.moveTo(x, y)
-        } else if (type === 'draw') {
-          context.strokeStyle = color || '#000'
-          context.lineWidth = width || 2
-          context.lineTo(x, y)
-          context.stroke()
-        }
-      })
+          if (type === 'start') {
+            context.strokeStyle = color || '#000'
+            context.lineWidth = width || 2
+            context.beginPath()
+            context.moveTo(x, y)
+          } else if (type === 'draw') {
+            context.strokeStyle = color || '#000'
+            context.lineWidth = width || 2
+            context.lineTo(x, y)
+            context.stroke()
+          }
+        })
+      }
     }
   }, [drawingData])
 
