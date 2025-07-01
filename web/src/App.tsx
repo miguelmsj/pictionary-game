@@ -200,6 +200,7 @@ function App() {
     if (!gameState?.currentDrawer || gameState.currentDrawer !== socket?.id)
       return
 
+    setIsDrawing(true)
     isDrawingRef.current = true
     const canvas = canvasRef.current
     if (canvas) {
@@ -262,6 +263,7 @@ function App() {
   }
 
   const stopDrawing = () => {
+    setIsDrawing(false)
     isDrawingRef.current = false
   }
 
@@ -357,7 +359,14 @@ function App() {
       {gameState.gameState === 'playing' && (
         <div className="game-container">
           {isCurrentDrawer ? (
-            <div className="word-display">Draw: {gameState.currentWord}</div>
+            <div className="word-display">
+              Draw: {gameState.currentWord}
+              {isDrawing && (
+                <span style={{ color: '#ff6b6b', marginLeft: '10px' }}>
+                  ● Drawing...
+                </span>
+              )}
+            </div>
           ) : (
             <div className="word-display">Guess the word!</div>
           )}
@@ -369,10 +378,11 @@ function App() {
               height={400}
               className="canvas"
               style={{
-                border: '2px solid #333',
+                border: isDrawing ? '3px solid #ff6b6b' : '2px solid #333',
                 backgroundColor: '#fff',
                 display: 'block',
                 cursor: 'crosshair',
+                transition: 'border-color 0.2s ease',
               }}
               onMouseDown={startDrawing}
               onMouseMove={draw}
@@ -383,9 +393,23 @@ function App() {
 
           <div className="controls">
             {isCurrentDrawer && (
-              <button onClick={clearCanvas} className="btn btn-danger">
-                Clear Canvas
-              </button>
+              <>
+                <button onClick={clearCanvas} className="btn btn-danger">
+                  Clear Canvas
+                </button>
+                {isDrawing && (
+                  <span
+                    style={{
+                      color: '#ff6b6b',
+                      marginLeft: '15px',
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                    }}
+                  >
+                    🎨 Drawing in progress...
+                  </span>
+                )}
+              </>
             )}
           </div>
 
