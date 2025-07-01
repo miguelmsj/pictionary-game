@@ -40,7 +40,9 @@ interface Message {
   type: 'correct' | 'wrong' | 'info'
 }
 
-const SERVER_URL = 'http://localhost:3001'
+// Import server configuration
+const SERVER_CONFIG = require('./config/server')
+const SERVER_URL = SERVER_CONFIG.SERVER_URL
 
 export default function App() {
   const [socket, setSocket] = useState<Socket | null>(null)
@@ -56,15 +58,17 @@ export default function App() {
   const [strokeColor, setStrokeColor] = useState('#000000')
   const [strokeWidth, setStrokeWidth] = useState(3)
   const [pathData, setPathData] = useState<
-    { d: string; color: string; width: number }[]
+    { id: string; d: string; color: string; width: number }[]
   >([])
   const [currentPathData, setCurrentPathData] = useState<{
+    id: string
     d: string
     color: string
     width: number
   } | null>(null)
 
   useEffect(() => {
+    console.log('Connecting to server:', SERVER_URL)
     const newSocket = io(SERVER_URL)
     setSocket(newSocket)
 
@@ -147,6 +151,7 @@ export default function App() {
         if (data.type === 'start') {
           // Start a new path
           newPathData.push({
+            id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             d: `M ${data.x} ${data.y}`,
             color: data.color || '#000',
             width: data.width || 2,
@@ -188,7 +193,7 @@ export default function App() {
 
   const addMessage = (text: string, type: 'correct' | 'wrong' | 'info') => {
     const message: Message = {
-      id: Date.now().toString(),
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       text,
       type,
     }
@@ -235,7 +240,12 @@ export default function App() {
       console.log('TouchStart:', locationX, locationY)
       const newPath = `M ${locationX} ${locationY}`
       setCurrentPath(newPath)
-      setCurrentPathData({ d: newPath, color: strokeColor, width: strokeWidth })
+      setCurrentPathData({
+        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        d: newPath,
+        color: strokeColor,
+        width: strokeWidth,
+      })
       console.log('setCurrentPathData called with:', {
         d: newPath,
         color: strokeColor,
@@ -459,9 +469,9 @@ export default function App() {
                     height={CANVAS_HEIGHT}
                     onPress={() => console.log('SVG pressed!')}
                   >
-                    {pathData.map((path, index) => (
+                    {pathData.map((path) => (
                       <Path
-                        key={index}
+                        key={path.id}
                         d={path.d}
                         stroke={path.color}
                         strokeWidth={path.width}
