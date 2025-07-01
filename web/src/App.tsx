@@ -55,7 +55,14 @@ function App() {
     })
 
     newSocket.on('roomJoined', (data) => {
-      setGameState(data)
+      setGameState((prev) => {
+        // If we already have a game state and the game is in progress,
+        // only update the players list, not the entire game state
+        if (prev && prev.gameState === 'playing') {
+          return { ...prev, players: data.players }
+        }
+        return data
+      })
       addMessage(`Joined room ${data.roomId}`, 'info')
     })
 
@@ -305,7 +312,7 @@ function App() {
       </div>
 
       {gameState.gameState === 'waiting' && (
-        <div className="game-container">
+        <div className="waiting-container">
           <p>Waiting for players... ({gameState.players.length} players)</p>
           {gameState.players.length >= 2 && (
             <button onClick={startGame} className="btn btn-primary">

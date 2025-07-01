@@ -79,7 +79,14 @@ export default function App() {
     })
 
     newSocket.on('roomJoined', (data) => {
-      setGameState(data)
+      setGameState((prev) => {
+        // If we already have a game state and the game is in progress,
+        // only update the players list, not the entire game state
+        if (prev && prev.gameState === 'playing') {
+          return { ...prev, players: data.players }
+        }
+        return data
+      })
       addMessage(`Joined room ${data.roomId}`, 'info')
     })
 
@@ -134,6 +141,8 @@ export default function App() {
     newSocket.on('canvasCleared', () => {
       setPaths([])
       setCurrentPath('')
+      setPathData([])
+      setCurrentPathData(null)
     })
 
     newSocket.on('correctGuess', (data) => {
@@ -303,7 +312,11 @@ export default function App() {
   return (
     <GestureHandlerRootView style={styles.container}>
       <StatusBar barStyle="dark-content" />
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={true}>
+      <ScrollView
+        style={{ flex: 1 }}
+        showsVerticalScrollIndicator={true}
+        scrollEnabled={!isDrawing}
+      >
         <Text style={styles.title}>Pictionary Game</Text>
 
         <View style={styles.gameInfo}>
@@ -353,7 +366,7 @@ export default function App() {
 
         {gameState.gameState === 'waiting' && (
           <View style={styles.gameContainer}>
-            <Text>
+            <Text style={{ marginBottom: 10 }}>
               Waiting for players... ({gameState.players.length} players)
             </Text>
             {gameState.players.length >= 2 && (
@@ -375,23 +388,12 @@ export default function App() {
             )}
 
             {/* Compact debug info */}
-            <Text style={{ fontSize: 8, color: '#666', marginBottom: 5 }}>
+            {/* <Text style={{ fontSize: 8, color: '#666', marginBottom: 5 }}>
               Drawer: {gameState.currentDrawer} | You: {socket?.id} | IsDrawer:{' '}
               {isCurrentDrawer ? 'YES' : 'NO'}
-            </Text>
-            {currentPathData && (
-              <Text style={{ fontSize: 8, color: '#333', marginBottom: 5 }}>
-                Path: {currentPathData.d.substring(0, 50)}...
-              </Text>
-            )}
+            </Text> */}
 
             <View style={styles.canvasContainer}>
-              <Text style={styles.canvasLabel}>
-                DRAWING CANVAS - Touch and drag here to draw
-              </Text>
-              <Text style={styles.canvasDebug}>
-                Canvas dimensions: {CANVAS_WIDTH} x {CANVAS_HEIGHT}
-              </Text>
               <View
                 style={{
                   flexDirection: 'row',
@@ -608,11 +610,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#28a745',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 8,
   },
   canvasContainer: {
-    borderWidth: 3,
-    borderColor: '#007bff',
     borderRadius: 8,
     backgroundColor: '#f8f9fa',
     shadowColor: '#000',
@@ -621,7 +621,7 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 5,
     marginVertical: 10,
-    padding: 10,
+    paddingTop: 10,
   },
   canvas: {
     width: CANVAS_WIDTH,
@@ -644,9 +644,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   canvasWrapper: {
-    borderWidth: 2,
-    borderColor: '#ff0000',
-    borderStyle: 'dashed',
     backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',

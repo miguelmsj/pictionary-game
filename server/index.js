@@ -116,6 +116,7 @@ class Game {
   }
 
   clearDrawing() {
+    console.log('Clearing drawing data')
     this.drawingData = []
   }
 }
@@ -134,12 +135,12 @@ io.on('connection', (socket) => {
     const game = games.get(roomId)
     game.addPlayer(socket.id, playerName)
 
-    socket.emit('roomJoined', {
+    // Send updated game state to all players in the room
+    io.to(roomId).emit('roomJoined', {
       roomId,
       players: game.players,
       gameState: game.gameState,
     })
-    socket.to(roomId).emit('playerJoined', { playerId: socket.id, playerName })
 
     console.log(`${playerName} joined room ${roomId}`)
   })
@@ -166,10 +167,11 @@ io.on('connection', (socket) => {
   })
 
   socket.on('clearCanvas', ({ roomId }) => {
+    console.log('Clearing canvas')
     const game = games.get(roomId)
     if (game) {
       game.clearDrawing()
-      socket.to(roomId).emit('canvasCleared')
+      io.to(roomId).emit('canvasCleared')
     }
   })
 
@@ -219,9 +221,13 @@ io.on('connection', (socket) => {
       const player = game.players.find((p) => p.id === socket.id)
       if (player) {
         game.removePlayer(socket.id)
-        socket
-          .to(roomId)
-          .emit('playerLeft', { playerId: socket.id, playerName: player.name })
+
+        // Send updated game state to remaining players
+        io.to(roomId).emit('roomJoined', {
+          roomId,
+          players: game.players,
+          gameState: game.gameState,
+        })
 
         // If no players left, remove the game
         if (game.players.length === 0) {
