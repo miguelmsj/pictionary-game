@@ -372,6 +372,37 @@ function App() {
           )}
 
           <div className="canvas-container">
+            {isCurrentDrawer && (
+              <div className="color-picker">
+                {[
+                  '#000000',
+                  '#FF0000',
+                  '#00FF00',
+                  '#0000FF',
+                  '#FFFF00',
+                  '#FF00FF',
+                  '#00FFFF',
+                ].map((color) => (
+                  <button
+                    key={color}
+                    onClick={() => {
+                      if (contextRef.current) {
+                        contextRef.current.strokeStyle = color
+                      }
+                    }}
+                    className="color-button"
+                    style={{
+                      backgroundColor: color,
+                      border:
+                        contextRef.current?.strokeStyle === color
+                          ? '3px solid #333'
+                          : '1px solid #ccc',
+                    }}
+                    title={`Select ${color}`}
+                  />
+                ))}
+              </div>
+            )}
             <canvas
               ref={canvasRef}
               width={600}

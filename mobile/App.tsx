@@ -316,7 +316,7 @@ export default function App() {
       >
         <Text style={styles.title}>Pictionary Game</Text>
 
-        <View style={styles.gameInfo}>
+        <View style={styles.gameInfoTitle}>
           <Text style={styles.roomText}>Room: {gameState.roomId}</Text>
           <ScrollView horizontal style={styles.playersList}>
             {gameState.players.map((player) => (
@@ -384,44 +384,40 @@ export default function App() {
               <Text style={styles.wordDisplay}>Guess the word!</Text>
             )}
 
-            {/* Compact debug info */}
-            {/* <Text style={{ fontSize: 8, color: '#666', marginBottom: 5 }}>
-              Drawer: {gameState.currentDrawer} | You: {socket?.id} | IsDrawer:{' '}
-              {isCurrentDrawer ? 'YES' : 'NO'}
-            </Text> */}
-
             <View style={styles.canvasContainer}>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  justifyContent: 'center',
-                  marginBottom: 10,
-                }}
-              >
-                {[
-                  '#000000',
-                  '#FF0000',
-                  '#00FF00',
-                  '#0000FF',
-                  '#FFFF00',
-                  '#FF00FF',
-                  '#00FFFF',
-                ].map((color) => (
-                  <TouchableOpacity
-                    key={color}
-                    onPress={() => setStrokeColor(color)}
-                    style={{
-                      width: 30,
-                      height: 30,
-                      borderRadius: 15,
-                      backgroundColor: color,
-                      marginHorizontal: 5,
-                      borderWidth: strokeColor === color ? 3 : 1,
-                      borderColor: strokeColor === color ? '#333' : '#ccc',
-                    }}
-                  />
-                ))}
-              </View>
+              {isCurrentDrawer && (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'center',
+                    marginBottom: 8,
+                  }}
+                >
+                  {[
+                    '#000000',
+                    '#FF0000',
+                    '#00FF00',
+                    '#0000FF',
+                    '#FFFF00',
+                    '#FF00FF',
+                    '#00FFFF',
+                  ].map((color) => (
+                    <TouchableOpacity
+                      key={color}
+                      onPress={() => setStrokeColor(color)}
+                      style={{
+                        width: 30,
+                        height: 30,
+                        borderRadius: 15,
+                        backgroundColor: color,
+                        marginHorizontal: 5,
+                        borderWidth: strokeColor === color ? 3 : 1,
+                        borderColor: strokeColor === color ? '#333' : '#ccc',
+                      }}
+                    />
+                  ))}
+                </View>
+              )}
 
               <View style={styles.canvasWrapper}>
                 <View
@@ -546,9 +542,22 @@ const styles = StyleSheet.create({
   },
   gameInfo: {
     backgroundColor: 'white',
-    padding: 20,
+    padding: 16,
     borderRadius: 8,
-    marginBottom: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  gameInfoTitle: {
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 8,
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -556,9 +565,10 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   roomText: {
-    fontSize: 18,
+    fontSize: 16,
+    borderRadius: 8,
     fontWeight: 'bold',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   playersList: {
     marginBottom: 10,
@@ -607,7 +617,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#28a745',
     textAlign: 'center',
-    marginBottom: 8,
   },
   canvasContainer: {
     borderRadius: 8,
@@ -617,8 +626,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 6,
     elevation: 5,
-    marginVertical: 10,
-    paddingTop: 10,
+    marginVertical: 8,
+    paddingTop: 8,
   },
   canvas: {
     width: CANVAS_WIDTH,
@@ -647,12 +656,11 @@ const styles = StyleSheet.create({
   },
   controls: {
     flexDirection: 'row',
-    marginTop: 20,
+    marginTop: 16,
   },
   guessInput: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
-    marginTop: 20,
   },
   input: {
     borderWidth: 1,

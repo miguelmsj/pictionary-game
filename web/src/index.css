@@ -49,6 +49,36 @@ code {
   cursor: crosshair;
 }
 
+.color-picker {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 15px;
+  padding: 10px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.color-button {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid #ccc;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.color-button:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.color-button:active {
+  transform: scale(0.95);
+}
+
 .controls {
   display: flex;
   gap: 10px;
