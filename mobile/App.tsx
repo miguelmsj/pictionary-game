@@ -236,13 +236,11 @@ export default function App() {
   const handleTouchMove = (event: any) => {
     if (isDrawing && gameState?.currentDrawer === socket?.id) {
       const { locationX, locationY } = event.nativeEvent
-      console.log('TouchMove:', locationX, locationY)
       setCurrentPath((prev) => `${prev} L ${locationX} ${locationY}`)
       setCurrentPathData((prev) => {
         const newData = prev
           ? { ...prev, d: `${prev.d} L ${locationX} ${locationY}` }
           : null
-        console.log('Updated currentPathData:', newData)
         return newData
       })
       if (socket && roomId) {

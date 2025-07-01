@@ -214,7 +214,7 @@ io.on('connection', (socket) => {
       }
     } else {
       // Wrong guess
-      socket.to(roomId).emit('wrongGuess', { playerName, guess })
+      io.to(roomId).emit('wrongGuess', { playerName, guess })
     }
   })
 
