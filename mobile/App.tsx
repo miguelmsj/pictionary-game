@@ -234,7 +234,6 @@ export default function App() {
   }
 
   const handleTouchMove = (event: any) => {
-    console.log('handleTouchMove called, isDrawing:', isDrawing)
     if (isDrawing && gameState?.currentDrawer === socket?.id) {
       const { locationX, locationY } = event.nativeEvent
       console.log('TouchMove:', locationX, locationY)

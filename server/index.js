@@ -163,6 +163,11 @@ io.on('connection', (socket) => {
     if (game && game.gameState === 'playing') {
       game.addDrawingData(data)
       socket.to(roomId).emit('drawing', data)
+    } else {
+      console.log('Game not found or not in playing state:', {
+        gameExists: !!game,
+        gameState: game?.gameState,
+      })
     }
   })
 

@@ -93,7 +93,11 @@ function App() {
     })
 
     newSocket.on('drawing', (data) => {
-      setDrawingData((prev) => [...prev, data])
+      setDrawingData((prev) => {
+        const newData = [...prev, data]
+
+        return newData
+      })
     })
 
     newSocket.on('canvasCleared', () => {
@@ -130,20 +134,30 @@ function App() {
         contextRef.current = context
       }
     }
-  }, [])
+  }, [gameState?.gameState]) // Re-run when game state changes to ensure canvas is rendered
 
   useEffect(() => {
     if (contextRef.current && drawingData.length > 0) {
-      const lastData = drawingData[drawingData.length - 1]
-      if (lastData.type === 'draw') {
-        const { x, y } = lastData
-        contextRef.current.lineTo(x, y)
-        contextRef.current.stroke()
-      } else if (lastData.type === 'start') {
-        const { x, y } = lastData
-        contextRef.current.beginPath()
-        contextRef.current.moveTo(x, y)
-      }
+      const context = contextRef.current
+      // Clear the canvas first
+      context.clearRect(0, 0, 600, 400)
+
+      // Process all drawing data to render the complete drawing
+      drawingData.forEach((data) => {
+        const { x, y, color, width, type } = data
+
+        if (type === 'start') {
+          context.strokeStyle = color || '#000'
+          context.lineWidth = width || 2
+          context.beginPath()
+          context.moveTo(x, y)
+        } else if (type === 'draw') {
+          context.strokeStyle = color || '#000'
+          context.lineWidth = width || 2
+          context.lineTo(x, y)
+          context.stroke()
+        }
+      })
     }
   }, [drawingData])
 
@@ -199,7 +213,16 @@ function App() {
       }
 
       if (socket && roomId) {
-        socket.emit('draw', { roomId, data: { type: 'start', x, y } })
+        socket.emit('draw', {
+          roomId,
+          data: {
+            type: 'start',
+            x,
+            y,
+            color: contextRef.current?.strokeStyle || '#000',
+            width: contextRef.current?.lineWidth || 2,
+          },
+        })
       }
     }
   }
@@ -224,7 +247,16 @@ function App() {
       }
 
       if (socket && roomId) {
-        socket.emit('draw', { roomId, data: { type: 'draw', x, y } })
+        socket.emit('draw', {
+          roomId,
+          data: {
+            type: 'draw',
+            x,
+            y,
+            color: contextRef.current?.strokeStyle || '#000',
+            width: contextRef.current?.lineWidth || 2,
+          },
+        })
       }
     }
   }
@@ -336,6 +368,12 @@ function App() {
               width={600}
               height={400}
               className="canvas"
+              style={{
+                border: '2px solid #333',
+                backgroundColor: '#fff',
+                display: 'block',
+                cursor: 'crosshair',
+              }}
               onMouseDown={startDrawing}
               onMouseMove={draw}
               onMouseUp={stopDrawing}
