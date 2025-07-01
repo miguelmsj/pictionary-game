@@ -131,11 +131,27 @@ export default function App() {
     })
 
     newSocket.on('drawing', (data) => {
-      if (data.type === 'start') {
-        setCurrentPath(`M ${data.x} ${data.y}`)
-      } else if (data.type === 'draw') {
-        setCurrentPath((prev) => `${prev} L ${data.x} ${data.y}`)
-      }
+      // Add received drawing data to the pathData state for rendering
+      setPathData((prev) => {
+        const newPathData = [...prev]
+
+        if (data.type === 'start') {
+          // Start a new path
+          newPathData.push({
+            d: `M ${data.x} ${data.y}`,
+            color: data.color || '#000',
+            width: data.width || 2,
+          })
+        } else if (data.type === 'draw') {
+          // Continue the current path
+          if (newPathData.length > 0) {
+            const lastPath = newPathData[newPathData.length - 1]
+            lastPath.d = `${lastPath.d} L ${data.x} ${data.y}`
+          }
+        }
+
+        return newPathData
+      })
     })
 
     newSocket.on('canvasCleared', () => {
